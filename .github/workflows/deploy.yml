@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy Serverless Trading Simulator
 
 on:
   push:
@@ -7,33 +7,47 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-deploy:
+  deploy-serverless:
     runs-on: ubuntu-latest
-    
+    if: github.ref == 'refs/heads/main'
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
-        
-    - name: Install dependencies
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Install AWS SAM CLI
+      run: |
+        pip install aws-sam-cli
+
+    - name: Install frontend dependencies
       run: |
         cd frontend
         npm ci
-        
-    - name: Build
+
+    - name: Deploy serverless stack
       run: |
-        cd frontend
-        npm run build
-        
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      if: github.ref == 'refs/heads/main'
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./frontend/build
+        cd aws-serverless
+        chmod +x deploy-serverless.sh
+        ./deploy-serverless.sh
+      env:
+        ENVIRONMENT: prod
+        CORS_ORIGINS: https://your-domain.com

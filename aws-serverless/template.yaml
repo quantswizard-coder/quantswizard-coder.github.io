@@ -1,0 +1,279 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Trading Simulator - Serverless Architecture'
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.11
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DYNAMODB_TABLE: !Ref TradingDataTable
+        CORS_ORIGINS: !Ref CorsOrigins
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+  
+  CorsOrigins:
+    Type: String
+    Default: "https://your-domain.com"
+    Description: Comma-separated list of allowed CORS origins
+
+Resources:
+  # API Gateway
+  TradingSimulatorApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: !Sub "'${CorsOrigins}'"
+        AllowCredentials: true
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: !Sub "'${CorsOrigins}'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: !Sub "'${CorsOrigins}'"
+
+  # DynamoDB Table
+  TradingDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'trading-simulator-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+        - AttributeName: symbol
+          AttributeType: S
+        - AttributeName: simulationId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: symbol-index
+          KeySchema:
+            - AttributeName: symbol
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: simulation-index
+          KeySchema:
+            - AttributeName: simulationId
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+  # Lambda Functions
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda_functions/health/
+      Handler: handler.lambda_handler
+      Events:
+        HealthApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/health
+            Method: get
+
+  StrategiesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda_functions/strategies/
+      Handler: handler.lambda_handler
+      Events:
+        GetStrategies:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/strategies
+            Method: get
+        GetStrategyDefaults:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/strategies/{strategyId}/defaults
+            Method: get
+
+  MarketDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda_functions/market_data/
+      Handler: handler.lambda_handler
+      Timeout: 60
+      MemorySize: 1024
+      Events:
+        GetMarketData:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/market-data/{symbol}
+            Method: get
+
+  SimulationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda_functions/simulations/
+      Handler: handler.lambda_handler
+      Timeout: 300
+      MemorySize: 2048
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TradingDataTable
+        - Statement:
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+            Resource: !GetAtt BacktestQueue.Arn
+      Events:
+        CreateSimulation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/simulations
+            Method: post
+        GetSimulations:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/simulations
+            Method: get
+        GetSimulation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/simulations/{simulationId}
+            Method: get
+        StartSimulation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/simulations/{simulationId}/start
+            Method: post
+        StopSimulation:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/simulations/{simulationId}/stop
+            Method: post
+        GetSimulationState:
+          Type: Api
+          Properties:
+            RestApiId: !Ref TradingSimulatorApi
+            Path: /api/simulations/{simulationId}/state
+            Method: get
+
+  # Backtesting Queue for Heavy Processing
+  BacktestQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'trading-backtest-${Environment}'
+      VisibilityTimeoutSeconds: 900
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt BacktestDLQ.Arn
+        maxReceiveCount: 3
+
+  BacktestDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'trading-backtest-dlq-${Environment}'
+
+  # S3 Bucket for Frontend
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'trading-simulator-frontend-${Environment}-${AWS::AccountId}'
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${FrontendBucket}/*'
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        Enabled: true
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD]
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        PriceClass: PriceClass_100
+
+Outputs:
+  ApiGatewayUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${TradingSimulatorApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+
+  FrontendUrl:
+    Description: "CloudFront distribution URL"
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub "${AWS::StackName}-FrontendUrl"
+
+  DynamoDBTable:
+    Description: "DynamoDB table name"
+    Value: !Ref TradingDataTable
+    Export:
+      Name: !Sub "${AWS::StackName}-DynamoDBTable"
