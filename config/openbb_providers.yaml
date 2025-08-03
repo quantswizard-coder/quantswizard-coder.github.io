@@ -1,0 +1,96 @@
+# OpenBB Provider Configuration for Bitcoin Quant Trading
+# This file configures the data providers used for cryptocurrency data
+
+providers:
+  # Primary crypto data providers
+  yfinance:
+    enabled: true
+    priority: 1
+    description: "Yahoo Finance - Free crypto data"
+    symbols:
+      - "BTC-USD"
+      - "ETH-USD"
+    intervals: ["1m", "5m", "15m", "1h", "1d"]
+    max_history_days: 730
+    
+  tiingo:
+    enabled: true
+    priority: 2
+    description: "Tiingo - Professional crypto data"
+    api_key_required: true
+    symbols:
+      - "BTCUSD"
+      - "ETHUSD"
+    intervals: ["1h", "1d"]
+    max_history_days: 365
+    exchanges: ["POLONIEX", "GDAX", "BINANCE"]
+    
+  alpha_vantage:
+    enabled: true
+    priority: 3
+    description: "Alpha Vantage - Crypto data with technical indicators"
+    api_key_required: true
+    symbols:
+      - "BTC"
+      - "ETH"
+    intervals: ["1min", "5min", "15min", "30min", "60min", "daily"]
+    max_history_days: 365
+    max_requests_per_minute: 5
+    
+  fmp:
+    enabled: false
+    priority: 4
+    description: "Financial Modeling Prep - Alternative crypto data"
+    api_key_required: true
+    symbols:
+      - "BTCUSD"
+      - "ETHUSD"
+    intervals: ["1d"]
+    max_history_days: 365
+
+# Data validation settings
+validation:
+  cross_provider_check: true
+  max_price_deviation_percent: 5.0
+  min_data_completeness_percent: 95.0
+  outlier_detection: true
+  
+# Caching settings
+cache:
+  enabled: true
+  directory: "data/openbb_cache"
+  max_age_hours: 24
+  compression: true
+  
+# Technical indicators configuration
+technical_indicators:
+  default_periods:
+    sma: [20, 50, 200]
+    ema: [12, 26]
+    rsi: [14]
+    macd:
+      fast: 12
+      slow: 26
+      signal: 9
+    bollinger_bands:
+      period: 20
+      std: 2
+    atr: [14]
+    
+# Rate limiting
+rate_limits:
+  requests_per_second: 2
+  requests_per_minute: 60
+  requests_per_hour: 1000
+  
+# Error handling
+error_handling:
+  max_retries: 3
+  retry_delay_seconds: 1
+  fallback_providers: ["yfinance", "tiingo"]
+  
+# Logging
+logging:
+  level: "INFO"
+  log_api_calls: true
+  log_data_quality: true

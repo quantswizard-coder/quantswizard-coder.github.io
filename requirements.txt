@@ -1,0 +1,86 @@
+# OpenBB Platform and Extensions
+openbb[all]>=4.0.0
+openbb-charting>=1.0.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+tensorflow>=2.13.0
+torch>=2.0.0
+stable-baselines3>=2.0.0
+gymnasium>=0.28.0
+
+# Visualization and UI
+streamlit>=1.28.0
+plotly>=5.15.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Technical Analysis
+ta-lib>=0.4.25
+pandas-ta>=0.3.14b
+yfinance>=0.2.18
+
+# Configuration and Validation
+pydantic>=2.0.0
+pyyaml>=6.0.0
+python-dotenv>=1.0.0
+
+# Utilities
+requests>=2.31.0
+python-dateutil>=2.8.2
+
+# Development and Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Backtesting
+vectorbt>=0.25.0
+zipline-reloaded>=3.0.0
+
+# Experiment Tracking
+mlflow>=2.7.0
+wandb>=0.15.0
+
+# Data Validation and Quality
+great-expectations>=0.17.0
+pandera>=0.17.0
+
+# Configuration and Environment
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+pyyaml>=6.0
+
+# Development and Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.7.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Jupyter and Notebooks
+jupyter>=1.0.0
+ipykernel>=6.25.0
+nbformat>=5.9.0
+
+# Utilities
+tqdm>=4.65.0
+requests>=2.31.0
+python-dateutil>=2.8.0
+pytz>=2023.3
+
+# Performance
+numba>=0.57.0
+joblib>=1.3.0
+
+# Database (optional)
+sqlalchemy>=2.0.0
+sqlite3
+
+# Logging
+loguru>=0.7.0

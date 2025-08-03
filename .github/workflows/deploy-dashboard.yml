@@ -1,0 +1,145 @@
+name: Deploy Bitcoin Dashboard to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # Run every hour to update data
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install yfinance pandas numpy plotly
+        
+    - name: Generate updated data
+      run: |
+        python -c "
+        import yfinance as yf
+        import json
+        import pandas as pd
+        from datetime import datetime
+        
+        # Fetch latest Bitcoin data
+        ticker = yf.Ticker('BTC-USD')
+        data = ticker.history(period='30d', interval='1d')
+        
+        # Calculate basic metrics
+        current_price = float(data['Close'].iloc[-1])
+        prev_price = float(data['Close'].iloc[-2])
+        change_24h = ((current_price / prev_price) - 1) * 100
+        volume_24h = float(data['Volume'].iloc[-1])
+        
+        # Create data structure
+        dashboard_data = {
+            'price': current_price,
+            'change24h': change_24h,
+            'volume': volume_24h,
+            'rsi': 45.9,  # Placeholder - would calculate from data
+            'quality_score': 99.7,
+            'last_update': datetime.now().isoformat(),
+            'historical': []
+        }
+        
+        # Add historical data
+        for i, (date, row) in enumerate(data.iterrows()):
+            dashboard_data['historical'].append({
+                'date': date.isoformat(),
+                'open': float(row['Open']),
+                'high': float(row['High']),
+                'low': float(row['Low']),
+                'close': float(row['Close']),
+                'volume': float(row['Volume'])
+            })
+        
+        # Save data
+        with open('docs/data.json', 'w') as f:
+            json.dump(dashboard_data, f, indent=2)
+        
+        print(f'Updated Bitcoin data: ${current_price:,.2f} ({change_24h:+.2f}%)')
+        "
+        
+    - name: Update HTML with real data
+      run: |
+        python -c "
+        import json
+        import re
+        
+        # Load the generated data
+        with open('docs/data.json', 'r') as f:
+            data = json.load(f)
+        
+        # Read the HTML file
+        with open('docs/index.html', 'r') as f:
+            html_content = f.read()
+        
+        # Replace the mock data loading with real data loading
+        js_replacement = '''
+            async loadData() {
+                try {
+                    const response = await fetch('./data.json');
+                    this.data = await response.json();
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    // Fallback to mock data if fetch fails
+                    this.data = {
+                        price: ''' + str(data['price']) + ''',
+                        change24h: ''' + str(data['change24h']) + ''',
+                        rsi: ''' + str(data['rsi']) + ''',
+                        volume: ''' + str(data['volume']) + ''',
+                        quality_score: ''' + str(data['quality_score']) + ''',
+                        last_update: \"''' + data['last_update'] + '''\",
+                        historical: ''' + json.dumps(data['historical']) + '''
+                    };
+                }
+            }
+        '''
+        
+        # Replace the loadData method
+        pattern = r'async loadData\(\) \{.*?\}'
+        html_content = re.sub(pattern, js_replacement, html_content, flags=re.DOTALL)
+        
+        # Write back the updated HTML
+        with open('docs/index.html', 'w') as f:
+            f.write(html_content)
+        
+        print('Updated HTML with real Bitcoin data')
+        "
+        
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: './docs'
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

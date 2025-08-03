@@ -1,0 +1,96 @@
+# General
+__pycache__/
+*.pyc
+.DS_Store
+*.env
+.venv
+venv*/
+venv
+.vscode
+*.ipynb
+env/
+venv/
+!notebooks/jupyter/.gitkeep
+.python-version
+.mypy_cache
+.ruff_cache
+.pytest_cache
+iframe_figures/
+exports/*
+.idea
+.coverage
+.scannerwork
+htmlcov
+**/.ipynb_checkpoints
+*.swp
+*.http
+.coverage.*
+*_tests.csv
+*_sdk_audit.csv
+!build/docker/compose.env
+.dccache
+*rome.json
+**/node_modules/*
+.cursorignore
+darts_logs/
+custom_imports/*.csv
+custom_imports/*/*.csv
+cache/
+lightning_logs/
+*/mocked_path
+*.pem
+
+# CLI
+*.pyo
+**/dist/*
+build/cli
+build/nsis/app
+DMG/*
+*.dmg
+*.sh
+cli/openbb_cli/assets/styles/user/hub.richstyle.json
+
+# Platform
+openbb_platform/openbb/package/*
+
+# Dev Container env
+obb/*
+
+# OpenBB Distribution
+!build/conda/installer/*.sh
+*.pkg
+*.exe
+build/conda/tmp
+
+# Interactive Trading Simulator specific
+logs/*.log
+data/processed/*
+data/backtest_results/*
+data/openbb_cache/*
+data/raw/*.csv
+results/*
+reports/*
+optimization_results/*
+models/*.pkl
+models/*.joblib
+models/*.h5
+.streamlit/
+*.db
+debug_*.py
+debug_*.log
+!setup.sh
+!start_trading_simulator.sh
+!stop_trading_simulator.sh
+
+# Frontend specific
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# GitHub Pages
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
