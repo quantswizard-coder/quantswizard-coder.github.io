@@ -8,12 +8,18 @@ import {
 } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const IS_GITHUB_PAGES = window.location.hostname === 'quantswizard-coder.github.io';
 
 class ApiService {
   private async request<T>(
-    endpoint: string, 
+    endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
+    // Return mock data for GitHub Pages
+    if (IS_GITHUB_PAGES) {
+      return this.getMockData<T>(endpoint);
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: {
@@ -36,6 +42,53 @@ class ApiService {
         error: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }
+  }
+
+  private async getMockData<T>(endpoint: string): Promise<ApiResponse<T>> {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    if (endpoint === '/strategies') {
+      return {
+        success: true,
+        data: [
+          { id: 'ma_crossover', name: 'Moving Average Crossover', description: 'Classic trend-following strategy using moving average crossovers' },
+          { id: 'rsi_mean_reversion', name: 'RSI Mean Reversion', description: 'Contrarian strategy based on RSI overbought/oversold levels' },
+          { id: 'momentum', name: 'Momentum Strategy', description: 'Trend-following strategy based on price momentum' },
+          { id: 'balanced_ensemble', name: 'Balanced Ensemble', description: 'Combines multiple strategies with equal weighting' },
+          { id: 'confidence_weighted_ensemble', name: 'Confidence Weighted Ensemble', description: 'Ensemble strategy with confidence-based weighting' },
+          { id: 'adaptive_ensemble', name: 'Adaptive Ensemble', description: 'Dynamic ensemble that adapts to market conditions' }
+        ] as T
+      };
+    }
+
+    if (endpoint.includes('/market-data/')) {
+      return {
+        success: true,
+        data: {
+          symbol: 'BTC-USD',
+          current_price: 113250.90,
+          price_change_24h: -2505.30,
+          price_change_percent_24h: -2.16,
+          data: Array.from({ length: 30 }, (_, i) => ({
+            timestamp: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString(),
+            open: 110000 + Math.random() * 10000,
+            high: 115000 + Math.random() * 10000,
+            low: 105000 + Math.random() * 10000,
+            close: 113000 + Math.random() * 5000,
+            volume: 50000000000 + Math.random() * 20000000000
+          }))
+        } as T
+      };
+    }
+
+    // Default mock response for GitHub Pages demo
+    return {
+      success: true,
+      data: {
+        message: 'This is a demo version. For full functionality, please run locally with the backend server.'
+      } as T
+    };
   }
 
   // Strategy management
