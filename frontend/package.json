@@ -2,7 +2,7 @@
   "name": "trading-simulator-frontend",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://quantswizard-coder.github.io",
+
   "dependencies": {
     "@headlessui/react": "^1.7.14",
     "@heroicons/react": "^2.0.17",
